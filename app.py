@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 # Ensure the correct path to the model file
-MODEL_PATH = "D:\\4TH YEAR\\FYP\\taasha\\LSTM_nn.h5"  # Update this path
-DATA_PATH = "D:\\4TH YEAR\\FYP\\taasha\\randsam_BABY.csv"  # Update this path
+MODEL_PATH = "LSTM_nn.h5"  # Update this path
+DATA_PATH = "randsam_BABY.csv"  # Update this path
 
 # Load model and dataset
 try:
