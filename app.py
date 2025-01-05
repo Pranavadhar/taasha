@@ -6,9 +6,8 @@ from tensorflow.keras.metrics import MeanSquaredError
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-# Ensure the correct path to the model file
-MODEL_PATH = "LSTM_nn.h5"  # Update this path
-DATA_PATH = "randsam_BABY.csv"  # Update this path
+MODEL_PATH = "LSTM_nn.h5" 
+DATA_PATH = "randsam_BABY.csv"  
 
 # Load model and dataset
 try:
@@ -23,25 +22,17 @@ except FileNotFoundError:
     st.error("Dataset file not found. Please check the path and file name.")
     st.stop()
 
-# Define input and output features
 input_features = ['Timestamp', 'volData', 'currentData']
 output_features = ['batTempData', 'socData', 'sohData', 'motTempData', 'speedData']
 
-# Initialize scaler
 scaler = StandardScaler()
 scaler.fit(df[input_features + output_features])
 
-# Sidebar input
-# Sidebar input
 st.sidebar.header("Input Features")
 timestamp_input = st.sidebar.number_input("Timestamp", min_value=0.0, step=0.0001, format="%.5f")
 voltage_input = st.sidebar.number_input("Voltage Data (volData)", step=0.0001, format="%.5f")
 current_input = st.sidebar.number_input("Current Data (currentData)", step=0.0001, format="%.5f")
 
-# Title
-st.title("Predictive Maintenance of Electric Vehicles")
-
-# Prediction function
 def predict(input_data):
     scaled_input = scaler.transform([input_data + [0] * len(output_features)])  # Dummy target values
     reshaped_input = scaled_input[:, :-len(output_features)].reshape(1, 1, len(input_features))
@@ -66,7 +57,6 @@ def detect_faults(predictions):
         faults.append("Motor Speed < 57")
     return faults
 
-# Main logic
 if st.sidebar.button("Predict"):
     input_data = [timestamp_input, voltage_input, current_input]
     current_predictions = predict(input_data)
@@ -97,7 +87,6 @@ if st.sidebar.button("Predict"):
     else:
         st.success("No faults detected.")
 
-    # Plotting
     st.header("Prediction Visualization")
     fig, axs = plt.subplots(2, 1, figsize=(10, 8))
     axs[0].bar(output_features, current_predictions, color='blue', alpha=0.7)
