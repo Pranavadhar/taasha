@@ -114,13 +114,17 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # Firebase setup
-FIREBASE_CRED_PATH = "fbkey.json"  # Update with your service account key path
-FIREBASE_DB_URL = "https://dbfyp-27eb4-default-rtdb.firebaseio.com/"  # Replace with your Firebase database URL
+FIREBASE_CRED_PATH = "fbkeytwo.json"  # Update with the correct path
+FIREBASE_DB_URL = "https://dbfyp-27eb4-default-rtdb.firebaseio.com/"  # Ensure this matches your Firebase project
 
 # Initialize Firebase Admin SDK
 if not firebase_admin._apps:
-    cred = credentials.Certificate(FIREBASE_CRED_PATH)
-    firebase_admin.initialize_app(cred, {"databaseURL": FIREBASE_DB_URL})
+    try:
+        cred = credentials.Certificate(FIREBASE_CRED_PATH)
+        firebase_admin.initialize_app(cred, {"databaseURL": FIREBASE_DB_URL})
+    except Exception as e:
+        st.error(f"Firebase initialization failed: {e}")
+        st.stop()
 
 MODEL_PATH = "LSTM_nn.h5" 
 DATA_PATH = "randsam_BABY.csv"  
@@ -146,8 +150,8 @@ scaler.fit(df[input_features + output_features])
 
 # Fetch data from Firebase
 def get_firebase_values():
-    ref = db.reference("parameters")
     try:
+        ref = db.reference("parameters")
         parameters = ref.get()
         voltage = parameters.get("voltage", 0.0)
         current = parameters.get("current", 0.0)
@@ -173,9 +177,9 @@ def detect_faults(predictions):
     faults = []
     if predictions[0] > 32:  # Battery temperature
         faults.append("Battery Temperature > 32°C")
-    if predictions[1] < 70:  # SOC
+    if predictions[1] < 85:  # SOC
         faults.append("SOC < 70%")
-    if predictions[2] < 70:  # SOH
+    if predictions[2] < 85:  # SOH
         faults.append("SOH < 70%")
     if predictions[3] > 32:  # Motor temperature
         faults.append("Motor Temperature > 32°C")
@@ -183,9 +187,11 @@ def detect_faults(predictions):
         faults.append("Motor Speed < 57")
     return faults
 
-if st.sidebar.button("Predict"):
+timestamp_input = st.number_input("Timestamp", min_value=0.0, step=0.0001, format="%.5f")
+if st.button("Predict"):
     voltage_input, current_input = get_firebase_values()
-    timestamp_input = st.sidebar.number_input("Timestamp", min_value=0.0, step=0.0001, format="%.5f")
+    #timestamp_input = st.sidebar.number_input("Timestamp", min_value=0.0, step=0.0001, format="%.5f")
+    #timestamp_input = 600
 
     input_data = [timestamp_input, voltage_input, current_input]
     current_predictions = predict(input_data)
@@ -230,3 +236,5 @@ if st.sidebar.button("Predict"):
 
     plt.tight_layout()
     st.pyplot(fig)
+    
+
