@@ -8,8 +8,28 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
+import requests
 
-DATA_PATH = "randsam_BABY.csv"  
+firebase_url = st.secrets["firebase"]["url"]
+firebase_auth_token = st.secrets["firebase"]["auth_token"]
+
+# Function to fetch data from Firebase using REST API
+def fetch_firebase_data():
+    try:
+        response = requests.get(f'{firebase_url}/parameters.json?auth={firebase_auth_token}')
+        if response.ok:
+            entries = response.json()
+            return entries
+        else:
+            st.error("Error fetching data from Firebase.")
+            return None
+    except requests.exceptions.RequestException as e:
+        st.error(f"Network error: {e}")
+        return None
+
+# Fetch Firebase data
+entries = fetch_firebase_data()
+DATA_PATH = "randsam_BABIES.csv"  
 try:
     data = pd.read_csv(DATA_PATH)
     data.dropna(inplace=True)
@@ -58,8 +78,11 @@ selected_model_name = st.sidebar.selectbox("Select a model", list(models.keys())
 selected_model = models[selected_model_name]
 
 timestamp = st.sidebar.number_input("Timestamp", min_value=0.0, value=10.0, step=0.1)
-vol_data = st.sidebar.number_input("Voltage Data", value=5.0, format="%.5f")
-current_data = st.sidebar.number_input("Current Data", value=0.5, format="%.5f")
+vol_data = entries.get("voltage", 0.0)
+current_data = entries.get("current", 0.0)
+st.write("### Fetched Data from Firebase:")
+st.write(f"**Voltage:** {vol_data} V")
+st.write(f"**Current:** {current_data} A")
 
 # Predict current and future states
 sample_input = np.array([[timestamp, vol_data, current_data]])

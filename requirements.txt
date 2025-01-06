@@ -5,5 +5,3 @@ pandas
 matplotlib
 scikit-learn
 firebase_admin
-requests
-json
