@@ -75,9 +75,9 @@ def detect_faults(predictions):
     if predictions[0] > 32:  # Battery temperature
         faults.append("Battery Temperature > 32°C")
     if predictions[1] < 85:  # SOC
-        faults.append("SOC < 70%")
+        faults.append("SOC < 85%")
     if predictions[2] < 85:  # SOH
-        faults.append("SOH < 70%")
+        faults.append("SOH < 85%")
     if predictions[3] > 32:  # Motor temperature
         faults.append("Motor Temperature > 32°C")
     if predictions[4] < 57:  # Motor speed
