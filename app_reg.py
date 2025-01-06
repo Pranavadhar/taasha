@@ -29,7 +29,7 @@ def fetch_firebase_data():
 
 # Fetch Firebase data
 entries = fetch_firebase_data()
-DATA_PATH = "randsam_BABY.csv"  
+DATA_PATH = "randsam_BABIES.csv"  
 try:
     data = pd.read_csv(DATA_PATH)
     data.dropna(inplace=True)
