@@ -132,3 +132,6 @@ if st.button("Predict"):
 
     plt.tight_layout()
     st.pyplot(fig)
+
+if __name__ == '__main__':
+    st.set_option('server.enableCORS', True)
