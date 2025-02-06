@@ -17,7 +17,11 @@ def fetch_firebase_data():
         response = requests.get(f'{firebase_url}/parameters.json?auth={firebase_auth_token}')
         if response.ok:
             entries = response.json()
-            return entries
+            if entries:
+                return entries
+            else:
+                st.warning("No data received from Firebase.")
+                return None
         else:
             st.error("Error fetching data from Firebase.")
             return None
@@ -28,46 +32,60 @@ def fetch_firebase_data():
 # Fetch Firebase data
 entries = fetch_firebase_data()
 
-MODEL_PATH = "LSTM_nn.h5" 
+# File paths
+MODEL_PATH = "LSTM_nn.h5"
 DATA_PATH = "randsam_BABIES.csv"
 
-# Load model and dataset
+# Load model
 try:
     model = load_model(MODEL_PATH, custom_objects={'mse': MeanSquaredError()})
+    st.success("Model loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model: {e}")
     st.stop()
 
+# Load dataset
 try:
     df = pd.read_csv(DATA_PATH)
+    df.dropna(inplace=True)
 except FileNotFoundError:
     st.error("Dataset file not found. Please check the path and file name.")
     st.stop()
 
+# Define input and output features
 input_features = ['Timestamp', 'volData', 'currentData']
 output_features = ['batTempData', 'socData', 'sohData', 'motTempData', 'speedData']
 
+# Standardize data
 scaler = StandardScaler()
 scaler.fit(df[input_features + output_features])
 
-# Fetch and display data
+# Function to fetch and display Firebase values
 def get_firebase_values():
-    voltage = entries.get("voltage", 0.0)
-    current = entries.get("current", 0.0)
-    st.write("### Fetched Data from Firebase:")
-    st.write(f"**Voltage:** {voltage} V")
-    st.write(f"**Current:** {current} A")
-    return voltage, current
+    if entries:
+        voltage = entries.get("voltage", 0.0)
+        current = entries.get("current", 0.0)
+        st.write("### Fetched Data from Firebase:")
+        st.write(f"**Voltage:** {voltage} V")
+        st.write(f"**Current:** {current} A")
+        return voltage, current
+    else:
+        st.warning("No Firebase data available.")
+        return 0.0, 0.0  # Default values
 
 # Prediction function
 def predict(input_data):
-    scaled_input = scaler.transform([input_data + [0] * len(output_features)])  # Dummy target values
-    reshaped_input = scaled_input[:, :-len(output_features)].reshape(1, 1, len(input_features))
-    predictions = model.predict(reshaped_input)
-    rescaled_output = scaler.inverse_transform(
-        np.concatenate((reshaped_input[:, 0], predictions), axis=1)
-    )[:, -len(output_features):]
-    return rescaled_output[0]
+    try:
+        scaled_input = scaler.transform([input_data + [0] * len(output_features)])  # Dummy target values
+        reshaped_input = scaled_input[:, :-len(output_features)].reshape(1, 1, len(input_features))
+        predictions = model.predict(reshaped_input)
+        rescaled_output = scaler.inverse_transform(
+            np.concatenate((reshaped_input[:, 0], predictions), axis=1)
+        )[:, -len(output_features):]
+        return rescaled_output[0]
+    except Exception as e:
+        st.error(f"Prediction error: {e}")
+        return np.zeros(len(output_features))  # Default predictions in case of error
 
 # Fault detection function
 def detect_faults(predictions):
@@ -85,12 +103,15 @@ def detect_faults(predictions):
     return faults
 
 # Streamlit UI
+st.title("Battery & Motor Health Prediction")
 timestamp_input = st.number_input("Timestamp", min_value=0.0, step=0.0001, format="%.5f")
+
 if st.button("Predict"):
     voltage_input, current_input = get_firebase_values()
     input_data = [timestamp_input, voltage_input, current_input]
     current_predictions = predict(input_data)
 
+    # Future prediction (e.g., 10 seconds later)
     future_timestamp = timestamp_input + 10
     future_data = [future_timestamp, voltage_input, current_input]
     future_predictions = predict(future_data)
@@ -120,6 +141,7 @@ if st.button("Predict"):
     # Visualization
     st.header("Prediction Visualization")
     fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+
     axs[0].bar(output_features, current_predictions, color='blue', alpha=0.7)
     axs[0].set_title(f"Predicted Values for Timestamp: {timestamp_input}")
     axs[0].set_ylabel("Value")
@@ -132,6 +154,3 @@ if st.button("Predict"):
 
     plt.tight_layout()
     st.pyplot(fig)
-
-if __name__ == '__main__':
-    st.set_option('server.enableCORS', True)
