@@ -33,8 +33,8 @@ def fetch_firebase_data():
 entries = fetch_firebase_data()
 
 # File paths
-MODEL_PATH = "LSTM_nn.h5"
-DATA_PATH = "randsam_BABIES.csv"
+MODEL_PATH = "LSTM_final_model.h5"
+DATA_PATH = "real_BABY.csv"
 
 # Load model
 try:
