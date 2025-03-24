@@ -137,17 +137,18 @@ if st.button("Predict & Forecast"):
     st.header("Future Prediction Visualization")
     future_predictions = np.array(future_predictions)
     fig, axs = plt.subplots(2, 1, figsize=(10, 8))
-    
+
+    # Plot the future predictions first
     for i, feature in enumerate(output_features):
         axs[0].plot(future_timestamps, future_predictions[:, i], label=feature)
     axs[0].set_title("Future Predictions (150 Timestamps)")
     axs[0].legend()
     axs[0].grid()
 
-    # Title for bar chart
-    st.subheader("Predicted Values Bar Chart")
-    # Bar chart for current predictions
-    st.bar_chart(dict(zip(output_features, current_predictions)))
-    
+    # Move the bar chart to the second plot with updated title
+    axs[1].bar(output_features, current_predictions, color='blue', alpha=0.7)
+    axs[1].set_title("Predicted Values Bar Chart")
+    axs[1].grid()
+
     plt.tight_layout()
     st.pyplot(fig)
