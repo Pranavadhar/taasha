@@ -91,16 +91,16 @@ def predict(input_data):
 # Fault detection function
 def detect_faults(predictions):
     faults = []
-    if predictions[0] > 32:
-        faults.append("Battery Temperature > 32°C")
-    if predictions[1] < 85:
-        faults.append("SOC < 85%")
-    if predictions[2] < 85:
-        faults.append("SOH < 85%")
-    if predictions[3] > 32:
-        faults.append("Motor Temperature > 32°C")
-    if predictions[4] < 57:
-        faults.append("Motor Speed < 57")
+    if predictions[0] > 35:
+        faults.append("Battery Temperature > 35°C")
+    if predictions[1] < 30:
+        faults.append("SOC < 30%")
+    if predictions[2] < 89:
+        faults.append("SOH < 89%")
+    if predictions[3] > 35:
+        faults.append("Motor Temperature > 35°C")
+    if predictions[4] < 60:
+        faults.append("Motor Speed < 60")
     return faults
 
 # Streamlit UI
