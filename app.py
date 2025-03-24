@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import re  # Import regex module for extracting numbers
+import requests
+import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
 from tensorflow.keras.metrics import MeanSquaredError
-import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
-import requests
 
 # Firebase configuration
 firebase_url = st.secrets["firebase"]["url"]
@@ -29,8 +30,26 @@ def fetch_firebase_data():
         st.error(f"Network error: {e}")
         return None
 
-# Fetch Firebase data
-entries = fetch_firebase_data()
+# Function to extract numeric values from strings with units
+def extract_numeric(value):
+    if isinstance(value, str):
+        match = re.search(r"[-+]?\d*\.\d+|\d+", value)  # Extracts first numeric value
+        return float(match.group()) if match else 0.0
+    return float(value)  # If already a number, return it directly
+
+# Function to fetch and display Firebase values
+def get_firebase_values():
+    entries = fetch_firebase_data()
+    if entries:
+        voltage = extract_numeric(entries.get("systemVoltage", 0.0))
+        current = extract_numeric(entries.get("current", 0.0))
+        st.write("### Fetched Data from Firebase:")
+        st.write(f"**Voltage:** {voltage} V")
+        st.write(f"**Current:** {current} A")
+        return voltage, current
+    else:
+        st.warning("No Firebase data available.")
+        return 0.0, 0.0  # Default values
 
 # File paths
 MODEL_PATH = "LSTM_final_model.h5"
@@ -59,19 +78,6 @@ output_features = ['batTempData', 'socData', 'sohData', 'motTempData', 'speedDat
 # Standardize data
 scaler = StandardScaler()
 scaler.fit(df[input_features + output_features])
-
-# Function to fetch and display Firebase values
-def get_firebase_values():
-    if entries:
-        voltage = entries.get("systemVoltage", 0.0)
-        current = entries.get("current", 0.0)
-        st.write("### Fetched Data from Firebase:")
-        st.write(f"**Voltage:** {voltage} V")
-        st.write(f"**Current:** {current} A")
-        return voltage, current
-    else:
-        st.warning("No Firebase data available.")
-        return 0.0, 0.0  # Default values
 
 # Prediction function
 def predict(input_data):
