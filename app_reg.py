@@ -93,17 +93,18 @@ selected_model = models[selected_model_name]
 timestamp = st.sidebar.number_input("Timestamp", min_value=0.0, value=10.0, step=0.1)
 
 # Fetch voltage and current data from Firebase safely
-vol_data = float(entries.get("systemVoltage", 0.0))  # Default to 0.0 if missing
-current_str = str(entries.get("current", "0.0 mA"))  # Convert to string to avoid errors
+# Safely fetch voltage and current data
+vol_data = float(entries.get("systemVoltage", 0.0))
 
-# Extract numerical value from the current data
-current_match = re.search(r"[\d\.]+", current_str)
-current_data = float(current_match.group()) if current_match else 0.0  # Default to 0.0
+# Extract current and handle possible formatting issues
+current_str = entries.get("current", "0.0 mA")  
+current_data = float(current_str.replace(" mA", "")) if " mA" in current_str else float(current_str)
 
-# Display fetched values
-st.write("### Fetched Data from Firebase:")
+# Debugging: Ensure extracted values are correct
+st.write("### Extracted Firebase Data:")
 st.write(f"**Voltage:** {vol_data} V")
-st.write(f"**Current:** {current_data} mA")  # Display in mA
+st.write(f"**Current:** {current_data} mA")
+
 
 # Make predictions
 sample_input = np.array([[timestamp, vol_data, current_data]], dtype=float)
