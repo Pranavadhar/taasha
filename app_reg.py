@@ -97,8 +97,17 @@ timestamp = st.sidebar.number_input("Timestamp", min_value=0.0, value=10.0, step
 vol_data = float(entries.get("systemVoltage", 0.0))
 
 # Extract current and handle possible formatting issues
-current_str = entries.get("current", "0.0 mA")  
-current_data = float(current_str.replace(" mA", "")) if " mA" in current_str else float(current_str)
+current_value = entries.get("current", "0.0 mA")  # Get default if missing
+
+# Convert to string explicitly
+current_str = str(current_value)
+
+# Extract numeric part safely
+try:
+    current_data = float(current_str.replace(" mA", "")) if " mA" in current_str else float(current_str)
+except ValueError:
+    st.error(f"Invalid current data format: {current_str}")
+    current_data = 0.0  # Default to 0.0 in case of an error
 
 # Debugging: Ensure extracted values are correct
 st.write("### Extracted Firebase Data:")
