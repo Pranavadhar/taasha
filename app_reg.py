@@ -78,7 +78,7 @@ selected_model_name = st.sidebar.selectbox("Select a model", list(models.keys())
 selected_model = models[selected_model_name]
 
 timestamp = st.sidebar.number_input("Timestamp", min_value=0.0, value=10.0, step=0.1)
-vol_data = entries.get("voltage", 0.0)
+vol_data = entries.get("systemVoltage", 0.0)
 current_data = entries.get("current", 0.0)
 st.write("### Fetched Data from Firebase:")
 st.write(f"**Voltage:** {vol_data} V")
