@@ -42,16 +42,23 @@ def get_firebase_values():
     entries = fetch_firebase_data()
     if entries:
         voltage = extract_numeric(entries.get("systemVoltage", 0.0))
-        current_str = entries.get("current", "0.0 mA")  # Default to "0.0 mA" to avoid errors
-        current_match = re.search(r"[\d\.]+", current_str)  # Extract numbers
-        current_data = float(current_match.group()) if current_match else 0.0  # Convert to float
+
+        # Ensure current_str is always a string
+        current_str = str(entries.get("current", "0.0 mA"))  
+
+        # Extract numeric value from current string
+        current_match = re.search(r"[\d\.]+", current_str)
+        current_data = float(current_match.group()) if current_match else 0.0  
+
         st.write("### Fetched Data from Firebase:")
-        st.write(f"**Voltage:** {vol_data} V")
-        st.write(f"**Current:** {current_data} mA")  # Keep it in mA
-        return voltage, current
+        st.write(f"**Voltage:** {voltage} V")
+        st.write(f"**Current:** {current_data} mA")  
+
+        return voltage, current_data
     else:
         st.warning("No Firebase data available.")
         return 0.0, 0.0  # Default values
+
 
 # File paths
 MODEL_PATH = "LSTM_final_model.h5"
