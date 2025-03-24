@@ -1,21 +1,21 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import re  # Import regex for string processing
+import requests
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
-import matplotlib.pyplot as plt
-import requests
-import re
 
-
+# Firebase credentials
 firebase_url = st.secrets["firebase"]["url"]
 firebase_auth_token = st.secrets["firebase"]["auth_token"]
 
-# Function to fetch data from Firebase using REST API
+# Function to fetch data from Firebase
 def fetch_firebase_data():
     try:
         response = requests.get(f'{firebase_url}/parameters.json?auth={firebase_auth_token}')
@@ -31,6 +31,8 @@ def fetch_firebase_data():
 
 # Fetch Firebase data
 entries = fetch_firebase_data()
+
+# Load dataset
 DATA_PATH = "real_BABY.csv"  
 try:
     data = pd.read_csv(DATA_PATH)
@@ -39,28 +41,35 @@ except FileNotFoundError:
     st.error("Dataset file not found. Please check the path and file name.")
     st.stop()
 
+# Define input and output features
 input_features = ["Timestamp", "volData", "currentData"]
 output_features = ["batTempData", "socData", "sohData", "motTempData", "speedData"]
 
+# Prepare dataset
 x = data[input_features]
 y = data[output_features]
 
+# Standardization
 scaler_x = StandardScaler()
 scaler_y = StandardScaler()
 x_scaled = scaler_x.fit_transform(x)
 y_scaled = scaler_y.fit_transform(y)
 
+# Train-test split
 x_train, x_test, y_train, y_test = train_test_split(x_scaled, y_scaled, test_size=0.2, random_state=42)
 
+# Models
 models = {
     "Linear Regression": LinearRegression(),
     "Decision Tree": DecisionTreeRegressor(random_state=42),
     "Random Forest": RandomForestRegressor(random_state=42, n_estimators=25),
 }
 
+# Train models
 for model in models.values():
     model.fit(x_train, y_train)
 
+# Function for fault detection
 def detect_faults(predictions):
     faults = []
     if predictions[0] > 32:  # Battery temperature
@@ -75,37 +84,41 @@ def detect_faults(predictions):
         faults.append("Motor Speed < 57")
     return faults
 
+# Sidebar for model and input selection
 st.sidebar.header("Model and Input Selection")
 selected_model_name = st.sidebar.selectbox("Select a model", list(models.keys()))
 selected_model = models[selected_model_name]
 
+# User input: Timestamp
 timestamp = st.sidebar.number_input("Timestamp", min_value=0.0, value=10.0, step=0.1)
 
-# Ensure fetched values are correctly formatted as float
-vol_data = float(entries.get("systemVoltage", 0.0))
-current_data = float(entries.get("current", 0.0))  # Keeping in mA
+# Fetch voltage and current data from Firebase safely
+vol_data = float(entries.get("systemVoltage", 0.0))  # Default to 0.0 if missing
+current_str = str(entries.get("current", "0.0 mA"))  # Convert to string to avoid errors
 
+# Extract numerical value from the current data
+current_match = re.search(r"[\d\.]+", current_str)
+current_data = float(current_match.group()) if current_match else 0.0  # Default to 0.0
+
+# Display fetched values
 st.write("### Fetched Data from Firebase:")
 st.write(f"**Voltage:** {vol_data} V")
-current_str = entries.get("current", "0.0 mA")  # Default to "0.0 mA" to avoid errors
-current_match = re.search(r"[\d\.]+", current_str)  # Extract numbers
-current_data = float(current_match.group()) if current_match else 0.0  # Convert to float
+st.write(f"**Current:** {current_data} mA")  # Display in mA
 
-st.write("### Fetched Data from Firebase:")
-st.write(f"**Voltage:** {vol_data} V")
-st.write(f"**Current:** {current_data} mA")  # Keep it in mA
-# Predict current and future states
+# Make predictions
 sample_input = np.array([[timestamp, vol_data, current_data]], dtype=float)
 sample_input_scaled = scaler_x.transform(sample_input)
 pred_scaled = selected_model.predict(sample_input_scaled)
 pred = scaler_y.inverse_transform(pred_scaled).flatten()
 
+# Predict for next timestamp
 next_timestamp = timestamp + 10
 next_input = np.array([[next_timestamp, vol_data, current_data]], dtype=float)
 next_input_scaled = scaler_x.transform(next_input)
 next_pred_scaled = selected_model.predict(next_input_scaled)
 next_pred = scaler_y.inverse_transform(next_pred_scaled).flatten()
 
+# Display predictions
 st.subheader("Predictions")
 st.write(f"**Model Used:** {selected_model_name}")
 st.write(f"**Predicted Outputs for Timestamp {timestamp}:**")
@@ -114,6 +127,7 @@ st.write(dict(zip(output_features, pred)))
 st.write(f"**Predicted Outputs for Timestamp {next_timestamp}:**")
 st.write(dict(zip(output_features, next_pred)))
 
+# Fault detection
 st.subheader("Fault Detection")
 faults = detect_faults(pred)
 if faults:
@@ -123,6 +137,7 @@ if faults:
 else:
     st.success("No faults detected.")
 
+# Visualization
 st.header("Prediction Visualization")
 fig, axs = plt.subplots(2, 1, figsize=(10, 8))
 
