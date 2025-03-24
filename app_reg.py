@@ -85,8 +85,13 @@ current_data = float(entries.get("current", 0.0))  # Keeping in mA
 
 st.write("### Fetched Data from Firebase:")
 st.write(f"**Voltage:** {vol_data} V")
-st.write(f"**Current:** {current_data} mA")  # Display as mA
+current_str = entries.get("current", "0.0 mA")  # Default to "0.0 mA" to avoid errors
+current_match = re.search(r"[\d\.]+", current_str)  # Extract numbers
+current_data = float(current_match.group()) if current_match else 0.0  # Convert to float
 
+st.write("### Fetched Data from Firebase:")
+st.write(f"**Voltage:** {vol_data} V")
+st.write(f"**Current:** {current_data} mA")  # Keep it in mA
 # Predict current and future states
 sample_input = np.array([[timestamp, vol_data, current_data]], dtype=float)
 sample_input_scaled = scaler_x.transform(sample_input)
