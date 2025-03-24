@@ -41,7 +41,7 @@ except FileNotFoundError:
     st.error("Dataset file not found. Please check the path and file name.")
     st.stop()
 
-# Define input and output features (Removing Timestamp)
+# Define input and output features
 input_features = ["volData", "currentData"]
 output_features = ["batTempData", "socData", "sohData", "motTempData", "speedData"]
 
@@ -73,13 +73,13 @@ for model in models.values():
 def detect_faults(predictions):
     faults = []
     if predictions[0] > 35:  # Battery temperature
-        faults.append("Battery Temperature > 32°C")
+        faults.append("Battery Temperature > 35°C")
     if predictions[1] < 30:  # SOC
         faults.append("SOC < 30%")
     if predictions[2] < 89:  # SOH
         faults.append("SOH < 89%")
     if predictions[3] > 35:  # Motor temperature
-        faults.append("Motor Temperature > 32°C")
+        faults.append("Motor Temperature > 35°C")
     if predictions[4] < 60:  # Motor speed
         faults.append("Motor Speed < 60")
     return faults
@@ -124,6 +124,14 @@ st.subheader("Predictions")
 st.write(f"**Model Used:** {selected_model_name}")
 st.write(f"**Predicted Outputs for Current Values:**")
 st.write(dict(zip(output_features, pred)))
+
+# Bar plot for predicted values
+st.subheader("Predicted Values Bar Chart")
+fig_bar, ax_bar = plt.subplots(figsize=(8, 5))
+ax_bar.bar(output_features, pred, color=['blue', 'green', 'red', 'orange', 'purple'])
+ax_bar.set_ylabel("Predicted Values")
+ax_bar.set_title("Predicted Output for Current Values")
+st.pyplot(fig_bar)
 
 st.subheader("Future Predictions for 150 Time Steps")
 st.write(future_df)
