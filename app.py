@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import re  # Import regex module for extracting numbers
+import re
 import requests
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
@@ -12,17 +12,13 @@ from sklearn.preprocessing import StandardScaler
 firebase_url = st.secrets["firebase"]["url"]
 firebase_auth_token = st.secrets["firebase"]["auth_token"]
 
-# Function to fetch data from Firebase using REST API
+# Function to fetch data from Firebase
 def fetch_firebase_data():
     try:
         response = requests.get(f'{firebase_url}/parameters.json?auth={firebase_auth_token}')
         if response.ok:
             entries = response.json()
-            if entries:
-                return entries
-            else:
-                st.warning("No data received from Firebase.")
-                return None
+            return entries if entries else None
         else:
             st.error("Error fetching data from Firebase.")
             return None
@@ -30,35 +26,23 @@ def fetch_firebase_data():
         st.error(f"Network error: {e}")
         return None
 
-# Function to extract numeric values from strings with units
+# Extract numeric values from strings
 def extract_numeric(value):
     if isinstance(value, str):
-        match = re.search(r"[-+]?\d*\.\d+|\d+", value)  # Extracts first numeric value
+        match = re.search(r"[-+]?\d*\.\d+|\d+", value)
         return float(match.group()) if match else 0.0
-    return float(value)  # If already a number, return it directly
+    return float(value)
 
-# Function to fetch and display Firebase values
+# Get Firebase values
 def get_firebase_values():
     entries = fetch_firebase_data()
     if entries:
         voltage = extract_numeric(entries.get("systemVoltage", 0.0))
-
-        # Ensure current_str is always a string
-        current_str = str(entries.get("current", "0.0 mA"))  
-
-        # Extract numeric value from current string
-        current_match = re.search(r"[\d\.]+", current_str)
-        current_data = float(current_match.group()) if current_match else 0.0  
-
-        st.write("### Fetched Data from Firebase:")
-        st.write(f"**Voltage:** {voltage} V")
-        st.write(f"**Current:** {current_data} mA")  
-
-        return voltage, current_data
+        current = extract_numeric(entries.get("current", "0.0 mA"))
+        timestamp = extract_numeric(entries.get("timestamp", 0.0))
+        return timestamp, voltage, current
     else:
-        st.warning("No Firebase data available.")
-        return 0.0, 0.0  # Default values
-
+        return 0.0, 0.0, 0.0
 
 # File paths
 MODEL_PATH = "LSTM_final_model.h5"
@@ -77,7 +61,7 @@ try:
     df = pd.read_csv(DATA_PATH)
     df.dropna(inplace=True)
 except FileNotFoundError:
-    st.error("Dataset file not found. Please check the path and file name.")
+    st.error("Dataset file not found.")
     st.stop()
 
 # Define input and output features
@@ -91,7 +75,7 @@ scaler.fit(df[input_features + output_features])
 # Prediction function
 def predict(input_data):
     try:
-        scaled_input = scaler.transform([input_data + [0] * len(output_features)])  # Dummy target values
+        scaled_input = scaler.transform([input_data + [0] * len(output_features)])
         reshaped_input = scaled_input[:, :-len(output_features)].reshape(1, 1, len(input_features))
         predictions = model.predict(reshaped_input)
         rescaled_output = scaler.inverse_transform(
@@ -100,72 +84,59 @@ def predict(input_data):
         return rescaled_output[0]
     except Exception as e:
         st.error(f"Prediction error: {e}")
-        return np.zeros(len(output_features))  # Default predictions in case of error
+        return np.zeros(len(output_features))
 
 # Fault detection function
 def detect_faults(predictions):
     faults = []
-    if predictions[0] > 32:  # Battery temperature
+    if predictions[0] > 32:
         faults.append("Battery Temperature > 32°C")
-    if predictions[1] < 85:  # SOC
+    if predictions[1] < 85:
         faults.append("SOC < 85%")
-    if predictions[2] < 85:  # SOH
+    if predictions[2] < 85:
         faults.append("SOH < 85%")
-    if predictions[3] > 32:  # Motor temperature
+    if predictions[3] > 32:
         faults.append("Motor Temperature > 32°C")
-    if predictions[4] < 57:  # Motor speed
+    if predictions[4] < 57:
         faults.append("Motor Speed < 57")
     return faults
 
 # Streamlit UI
 st.title("Battery & Motor Health Prediction")
-timestamp_input = st.number_input("Timestamp", min_value=0.0, step=0.0001, format="%.5f")
 
-if st.button("Predict"):
-    voltage_input, current_input = get_firebase_values()
-    input_data = [timestamp_input, voltage_input, current_input]
+if st.button("Predict & Forecast"):
+    timestamp, voltage, current = get_firebase_values()
+    input_data = [timestamp, voltage, current]
     current_predictions = predict(input_data)
 
-    # Future prediction (e.g., 10 seconds later)
-    future_timestamp = timestamp_input + 10
-    future_data = [future_timestamp, voltage_input, current_input]
-    future_predictions = predict(future_data)
-
+    # Generate future predictions for 150 timestamps
+    future_timestamps = [timestamp + i for i in range(1, 151)]
+    future_predictions = [predict([t, voltage, current]) for t in future_timestamps]
+    
     # Display current predictions
-    st.header(f"Predictions for Timestamp: {timestamp_input}")
+    st.header(f"Predictions for Timestamp: {timestamp}")
     results = dict(zip(output_features, current_predictions))
     st.write("### Predicted Values:", results)
-    st.write("### Fault Conditions:")
     faults = detect_faults(current_predictions)
     if faults:
         st.error(", ".join(faults))
     else:
         st.success("No faults detected.")
 
-    # Display future predictions
-    st.header(f"Predictions for Timestamp: {future_timestamp}")
-    future_results = dict(zip(output_features, future_predictions))
-    st.write("### Predicted Values:", future_results)
-    st.write("### Fault Conditions:")
-    future_faults = detect_faults(future_predictions)
-    if future_faults:
-        st.error(", ".join(future_faults))
-    else:
-        st.success("No faults detected.")
-
     # Visualization
-    st.header("Prediction Visualization")
+    st.header("Future Prediction Visualization")
+    future_predictions = np.array(future_predictions)
     fig, axs = plt.subplots(2, 1, figsize=(10, 8))
-
-    axs[0].bar(output_features, current_predictions, color='blue', alpha=0.7)
-    axs[0].set_title(f"Predicted Values for Timestamp: {timestamp_input}")
-    axs[0].set_ylabel("Value")
-    axs[0].grid(True)
-
-    axs[1].bar(output_features, future_predictions, color='orange', alpha=0.7)
-    axs[1].set_title(f"Predicted Values for Timestamp: {future_timestamp}")
-    axs[1].set_ylabel("Value")
-    axs[1].grid(True)
-
+    
+    for i, feature in enumerate(output_features):
+        axs[0].plot(future_timestamps, future_predictions[:, i], label=feature)
+    axs[0].set_title("Future Predictions (150 Timestamps)")
+    axs[0].legend()
+    axs[0].grid()
+    
+    axs[1].bar(output_features, current_predictions, color='blue', alpha=0.7)
+    axs[1].set_title(f"Predicted Values for Timestamp: {timestamp}")
+    axs[1].grid()
+    
     plt.tight_layout()
     st.pyplot(fig)
