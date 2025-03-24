@@ -72,16 +72,16 @@ for model in models.values():
 # Function for fault detection
 def detect_faults(predictions):
     faults = []
-    if predictions[0] > 32:  # Battery temperature
+    if predictions[0] > 35:  # Battery temperature
         faults.append("Battery Temperature > 32°C")
-    if predictions[1] < 85:  # SOC
-        faults.append("SOC < 85%")
-    if predictions[2] < 85:  # SOH
-        faults.append("SOH < 85%")
-    if predictions[3] > 32:  # Motor temperature
+    if predictions[1] < 30:  # SOC
+        faults.append("SOC < 30%")
+    if predictions[2] < 89:  # SOH
+        faults.append("SOH < 89%")
+    if predictions[3] > 35:  # Motor temperature
         faults.append("Motor Temperature > 32°C")
-    if predictions[4] < 57:  # Motor speed
-        faults.append("Motor Speed < 57")
+    if predictions[4] < 60:  # Motor speed
+        faults.append("Motor Speed < 60")
     return faults
 
 # Sidebar for model selection
