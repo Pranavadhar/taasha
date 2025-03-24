@@ -115,6 +115,10 @@ if st.button("Predict & Forecast"):
     future_timestamps = [timestamp + i for i in range(1, 151)]
     future_predictions = [predict([t, voltage, current]) for t in future_timestamps]
     
+    # Store predictions in DataFrame
+    future_df = pd.DataFrame(future_predictions, columns=output_features)
+    future_df.index.name = "Future Timestamp"
+
     # Display current predictions
     st.header(f"Predictions for Timestamp: {timestamp}")
     results = dict(zip(output_features, current_predictions))
@@ -124,7 +128,11 @@ if st.button("Predict & Forecast"):
         st.error(", ".join(faults))
     else:
         st.success("No faults detected.")
-    
+
+    # Display future predictions
+    st.subheader("Future Predictions for 150 Time Steps")
+    st.write(future_df)
+
     # Visualization
     st.header("Future Prediction Visualization")
     future_predictions = np.array(future_predictions)
@@ -142,22 +150,3 @@ if st.button("Predict & Forecast"):
     
     plt.tight_layout()
     st.pyplot(fig)
-    
-    # Report Generation
-    report = f"""
-    **Battery & Motor Health Report**
-    
-    **Timestamp:** {timestamp}
-    **Voltage:** {voltage} V
-    **Current:** {current} mA
-    
-    **Predictions:**
-    - Battery Temperature: {results['batTempData']}°C
-    - SOC: {results['socData']}%
-    - SOH: {results['sohData']}%
-    - Motor Temperature: {results['motTempData']}°C
-    - Motor Speed: {results['speedData']} RPM
-    
-    **Faults Detected:** {', '.join(faults) if faults else 'None'}
-    """
-    st.text_area("Generated Report:", report, height=250)
