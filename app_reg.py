@@ -18,8 +18,7 @@ def fetch_firebase_data():
     try:
         response = requests.get(f'{firebase_url}/parameters.json?auth={firebase_auth_token}')
         if response.ok:
-            entries = response.json()
-            return entries
+            return response.json()
         else:
             st.error("Error fetching data from Firebase.")
             return None
@@ -61,15 +60,15 @@ for model in models.values():
 
 def detect_faults(predictions):
     faults = []
-    if predictions[0] > 32:  # Battery temperature
+    if predictions[0] > 32:
         faults.append("Battery Temperature > 32°C")
-    if predictions[1] < 85:  # SOC
+    if predictions[1] < 85:
         faults.append("SOC < 85%")
-    if predictions[2] < 85:  # SOH
+    if predictions[2] < 85:
         faults.append("SOH < 85%")
-    if predictions[3] > 32:  # Motor temperature
+    if predictions[3] > 32:
         faults.append("Motor Temperature > 32°C")
-    if predictions[4] < 57:  # Motor speed
+    if predictions[4] < 57:
         faults.append("Motor Speed < 57")
     return faults
 
@@ -79,10 +78,11 @@ selected_model = models[selected_model_name]
 
 timestamp = st.sidebar.number_input("Timestamp", min_value=0.0, value=10.0, step=0.1)
 vol_data = entries.get("systemVoltage", 0.0)
-current_data = entries.get("current", 0.0)
+current_data = entries.get("current", 0.0)  # Keep the value in mA
+
 st.write("### Fetched Data from Firebase:")
 st.write(f"**Voltage:** {vol_data} V")
-st.write(f"**Current:** {current_data} A")
+st.write(f"**Current:** {current_data} mA")
 
 # Predict current and future states
 sample_input = np.array([[timestamp, vol_data, current_data]])
