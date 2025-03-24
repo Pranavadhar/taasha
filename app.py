@@ -37,9 +37,11 @@ def extract_numeric(value):
 def get_firebase_values():
     entries = fetch_firebase_data()
     if entries:
-        voltage = extract_numeric(entries.get("systemVoltage", 0.0))
+        voltage = extract_numeric(entries.get("systemVoltage", "0.0 V"))
         current = extract_numeric(entries.get("current", "0.0 mA"))
         timestamp = extract_numeric(entries.get("timestamp", 0.0))
+        st.write(f"**Voltage:** {voltage} V")
+        st.write(f"**Current:** {current} mA")
         return timestamp, voltage, current
     else:
         return 0.0, 0.0, 0.0
@@ -50,7 +52,7 @@ DATA_PATH = "real_BABY.csv"
 
 # Load model
 try:
-    model = load_model(MODEL_PATH, custom_objects={'mse': MeanSquaredError()})
+    model = load_model(MODEL_PATH, compile=False)
     st.success("Model loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model: {e}")
