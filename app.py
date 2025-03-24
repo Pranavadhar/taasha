@@ -63,7 +63,7 @@ scaler.fit(df[input_features + output_features])
 # Function to fetch and display Firebase values
 def get_firebase_values():
     if entries:
-        voltage = entries.get("voltage", 0.0)
+        voltage = entries.get("systemVoltage", 0.0)
         current = entries.get("current", 0.0)
         st.write("### Fetched Data from Firebase:")
         st.write(f"**Voltage:** {voltage} V")
