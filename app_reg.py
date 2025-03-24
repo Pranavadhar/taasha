@@ -85,7 +85,7 @@ current_data = float(entries.get("current", 0.0))  # Keeping in mA
 
 st.write("### Fetched Data from Firebase:")
 st.write(f"**Voltage:** {vol_data} V")
-st.write(f"**Current:** {current_data}")  # Display as mA
+st.write(f"**Current:** {current_data} mA")  # Display as mA
 
 # Predict current and future states
 sample_input = np.array([[timestamp, vol_data, current_data]], dtype=float)
