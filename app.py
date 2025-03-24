@@ -45,7 +45,7 @@ def get_firebase_values():
         current = extract_numeric(entries.get("current", 0.0))
         st.write("### Fetched Data from Firebase:")
         st.write(f"**Voltage:** {voltage} V")
-        st.write(f"**Current:** {current} A")
+        st.write(f"**Current:** {current} mA")
         return voltage, current
     else:
         st.warning("No Firebase data available.")
