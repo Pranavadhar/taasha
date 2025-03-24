@@ -41,8 +41,8 @@ except FileNotFoundError:
     st.error("Dataset file not found. Please check the path and file name.")
     st.stop()
 
-# Define input and output features
-input_features = ["Timestamp", "volData", "currentData"]
+# Define input and output features (Removing Timestamp)
+input_features = ["volData", "currentData"]
 output_features = ["batTempData", "socData", "sohData", "motTempData", "speedData"]
 
 # Prepare dataset
@@ -84,13 +84,10 @@ def detect_faults(predictions):
         faults.append("Motor Speed < 57")
     return faults
 
-# Sidebar for model and input selection
-st.sidebar.header("Model and Input Selection")
+# Sidebar for model selection
+st.sidebar.header("Model Selection")
 selected_model_name = st.sidebar.selectbox("Select a model", list(models.keys()))
 selected_model = models[selected_model_name]
-
-# User input: Timestamp
-timestamp = st.sidebar.number_input("Timestamp", min_value=0.0, value=10.0, step=0.1)
 
 # Fetch voltage and current data from Firebase safely
 vol_data = float(entries.get("systemVoltage", 0.0))  # Default to 0.0 if missing
@@ -105,27 +102,31 @@ st.write("### Fetched Data from Firebase:")
 st.write(f"**Voltage:** {vol_data} V")
 st.write(f"**Current:** {current_data} mA")  # Display in mA
 
-# Make predictions
-sample_input = np.array([[timestamp, vol_data, current_data]], dtype=float)
+# Predict for current values
+sample_input = np.array([[vol_data, current_data]], dtype=float)
 sample_input_scaled = scaler_x.transform(sample_input)
 pred_scaled = selected_model.predict(sample_input_scaled)
 pred = scaler_y.inverse_transform(pred_scaled).flatten()
 
-# Predict for next timestamp
-next_timestamp = timestamp + 10
-next_input = np.array([[next_timestamp, vol_data, current_data]], dtype=float)
-next_input_scaled = scaler_x.transform(next_input)
-next_pred_scaled = selected_model.predict(next_input_scaled)
-next_pred = scaler_y.inverse_transform(next_pred_scaled).flatten()
+# Predict for 150 future timestamps
+future_predictions = []
+future_inputs = np.tile([vol_data, current_data], (150, 1))  # Repeat input 150 times
+future_inputs_scaled = scaler_x.transform(future_inputs)
+future_preds_scaled = selected_model.predict(future_inputs_scaled)
+future_preds = scaler_y.inverse_transform(future_preds_scaled)
+
+# Store predictions in DataFrame
+future_df = pd.DataFrame(future_preds, columns=output_features)
+future_df.index.name = "Future Timestamp"
 
 # Display predictions
 st.subheader("Predictions")
 st.write(f"**Model Used:** {selected_model_name}")
-st.write(f"**Predicted Outputs for Timestamp {timestamp}:**")
+st.write(f"**Predicted Outputs for Current Values:**")
 st.write(dict(zip(output_features, pred)))
 
-st.write(f"**Predicted Outputs for Timestamp {next_timestamp}:**")
-st.write(dict(zip(output_features, next_pred)))
+st.subheader("Future Predictions for 150 Time Steps")
+st.write(future_df)
 
 # Fault detection
 st.subheader("Fault Detection")
@@ -138,20 +139,12 @@ else:
     st.success("No faults detected.")
 
 # Visualization
-st.header("Prediction Visualization")
-fig, axs = plt.subplots(2, 1, figsize=(10, 8))
-
-# Current predictions
-axs[0].bar(output_features, pred, color="blue", alpha=0.7)
-axs[0].set_title(f"Predicted Outputs for Timestamp {timestamp}")
-axs[0].set_ylabel("Values")
-axs[0].grid(True)
-
-# Future predictions
-axs[1].bar(output_features, next_pred, color="green", alpha=0.7)
-axs[1].set_title(f"Predicted Outputs for Timestamp {next_timestamp}")
-axs[1].set_ylabel("Values")
-axs[1].grid(True)
-
-plt.tight_layout()
+st.header("Future Prediction Trend")
+fig, ax = plt.subplots(figsize=(12, 6))
+for feature in output_features:
+    ax.plot(range(1, 151), future_df[feature], label=feature)
+ax.set_xlabel("Future Timestamp")
+ax.set_ylabel("Predicted Values")
+ax.set_title("Predictions Over 150 Future Time Steps")
+ax.legend()
 st.pyplot(fig)
