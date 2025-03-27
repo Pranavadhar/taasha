@@ -42,8 +42,8 @@ def get_firebase_values():
     else:
         return 0.0, 0.0, 0.0
 
-MODEL_PATH = "LSTM_final_model.h5"
-DATA_PATH = "real_BABY.csv"
+MODEL_PATH = "LSTM_final_model_upt.h5"
+DATA_PATH = "real_updated_BABY.csv"
 
 try:
     model = load_model(MODEL_PATH, compile=False)
@@ -60,7 +60,7 @@ except FileNotFoundError:
     st.stop()
 
 input_features = ['Timestamp', 'volData', 'currentData']
-output_features = ['batTempData', 'socData', 'sohData', 'motTempData', 'speedData']
+output_features = ['batTempData', 'socData', 'sohData', 'motTempData']
 
 scaler = StandardScaler()
 scaler.fit(df[input_features + output_features])
@@ -92,8 +92,6 @@ def detect_faults(predictions):
         faults.append("Motor Temperature > 35°C - SYSTEM COLLING ACTIVELY")
     if predictions[3] > 45:
         faults.append("Motor Temperature > 45°C - SYSTEM OVER HEATING  : COOLING SYSTEM CHECK UP RECOMMENDED ")
-    if predictions[4] < 60:
-        faults.append("Motor Speed < 60")
     return faults
 
 def calculate_soc(voltage, current, timestamp, lastVoltage, lastTime, lastVoltageUpdate, batteryPercent, isInitialized, minVoltage=3.0, maxVoltage=12.6):
@@ -138,14 +136,13 @@ if st.button("Predict & Forecast"):
     input_data = [timestamp, voltage, current]
     current_predictions = predict(input_data)
 
-    predicted_batTemp, predicted_soc, predicted_soh, predicted_motTemp, predicted_speed = current_predictions
+    predicted_batTemp, predicted_soc, predicted_soh, predicted_motTemp = current_predictions
 
     results = {
         "batTempData": predicted_batTemp,
         "socData": soc_mapped,
         "sohData": predicted_soh,
         "motTempData": predicted_motTemp,
-        "speedData": predicted_speed
     }
 
     future_timestamps = [timestamp + i for i in range(1, 151)]
@@ -153,13 +150,13 @@ if st.button("Predict & Forecast"):
 
     for t in future_timestamps:
         future_pred = predict([t, voltage, current])
-        future_batTemp, future_soc, future_soh, future_motTemp, future_speed = future_pred
+        future_batTemp, future_soc, future_soh, future_motTemp = future_pred
 
         future_soc_mapped, lastVoltage, lastTime, lastVoltageUpdate = calculate_soc(
             voltage, current, t, lastVoltage, lastTime, lastVoltageUpdate, soc_mapped, isInitialized
         )
 
-        future_predictions.append([future_batTemp, future_soc_mapped, future_soh, future_motTemp, future_speed])
+        future_predictions.append([future_batTemp, future_soc_mapped, future_soh, future_motTemp])
 
     future_df = pd.DataFrame(future_predictions, columns=output_features, index=future_timestamps)
     future_df.index.name = "Future Timestamp"
