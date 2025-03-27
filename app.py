@@ -111,18 +111,43 @@ if st.button("Predict & Forecast"):
     input_data = [timestamp, voltage, current]
     current_predictions = predict(input_data)
 
+    # Extract predicted values
+    predicted_batTemp, predicted_soc, predicted_soh, predicted_motTemp, predicted_speed = current_predictions
+
+    # **Mapped SOC based on voltage**
+    soc_mapped = np.clip((voltage - 3) / (12.6 - 3) * 100, 0, 100)
+
+    # **Replace predicted SOC with mapped SOC**
+    results = {
+        "batTempData": predicted_batTemp,
+        "socData": soc_mapped,  # Fake SOC based on voltage
+        "sohData": predicted_soh,
+        "motTempData": predicted_motTemp,
+        "speedData": predicted_speed
+    }
+
     # Generate future predictions for 150 timestamps
     future_timestamps = [timestamp + i for i in range(1, 151)]
-    future_predictions = [predict([t, voltage, current]) for t in future_timestamps]
+    future_predictions = []
     
+    for t in future_timestamps:
+        future_pred = predict([t, voltage, current])
+        future_batTemp, future_soc, future_soh, future_motTemp, future_speed = future_pred
+        
+        # **Use mapped SOC instead of predicted SOC**
+        future_soc_mapped = np.clip((voltage - 3) / (12.6 - 3) * 100, 0, 100)
+        
+        future_predictions.append([future_batTemp, future_soc_mapped, future_soh, future_motTemp, future_speed])
+
     # Store predictions in DataFrame
-    future_df = pd.DataFrame(future_predictions, columns=output_features)
+    future_df = pd.DataFrame(future_predictions, columns=output_features, index=future_timestamps)
     future_df.index.name = "Future Timestamp"
 
     # Display current predictions
     st.header(f"Predictions for Timestamp: {timestamp}")
-    results = dict(zip(output_features, current_predictions))
     st.write("### Predicted Values:", results)
+
+    # Detect faults
     faults = detect_faults(current_predictions)
     if faults:
         st.error(", ".join(faults))
@@ -138,7 +163,7 @@ if st.button("Predict & Forecast"):
     future_predictions = np.array(future_predictions)
     fig, axs = plt.subplots(2, 1, figsize=(10, 8))
 
-    # Plot the future predictions first
+    # Plot the future predictions
     for i, feature in enumerate(output_features):
         axs[0].plot(future_timestamps, future_predictions[:, i], label=feature)
     axs[0].set_title("Future Predictions (150 Timestamps)")
@@ -146,7 +171,7 @@ if st.button("Predict & Forecast"):
     axs[0].grid()
 
     # Move the bar chart to the second plot with updated title
-    axs[1].bar(output_features, current_predictions, color='blue', alpha=0.7)
+    axs[1].bar(output_features, results.values(), color='blue', alpha=0.7)
     axs[1].set_title("Predicted Values Bar Chart")
     axs[1].grid()
 
