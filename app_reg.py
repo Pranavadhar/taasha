@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import re  # Import regex for string processing
+import re
 import requests
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -11,17 +11,14 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
-# Firebase credentials
 firebase_url = st.secrets["firebase"]["url"]
 firebase_auth_token = st.secrets["firebase"]["auth_token"]
 
-# Function to fetch data from Firebase
 def fetch_firebase_data():
     try:
         response = requests.get(f'{firebase_url}/parameters.json?auth={firebase_auth_token}')
         if response.ok:
-            entries = response.json()
-            return entries
+            return response.json()
         else:
             st.error("Error fetching data from Firebase.")
             return None
@@ -29,11 +26,8 @@ def fetch_firebase_data():
         st.error(f"Network error: {e}")
         return None
 
-# Fetch Firebase data
 entries = fetch_firebase_data()
-
-# Load dataset
-DATA_PATH = "real_BABY.csv"  
+DATA_PATH = "real_BABY.csv"
 try:
     data = pd.read_csv(DATA_PATH)
     data.dropna(inplace=True)
@@ -41,88 +35,66 @@ except FileNotFoundError:
     st.error("Dataset file not found. Please check the path and file name.")
     st.stop()
 
-# Define input and output features
 input_features = ["volData", "currentData"]
 output_features = ["batTempData", "socData", "sohData", "motTempData", "speedData"]
 
-# Prepare dataset
 x = data[input_features]
 y = data[output_features]
 
-# Standardization
 scaler_x = StandardScaler()
 scaler_y = StandardScaler()
 x_scaled = scaler_x.fit_transform(x)
 y_scaled = scaler_y.fit_transform(y)
 
-# Train-test split
 x_train, x_test, y_train, y_test = train_test_split(x_scaled, y_scaled, test_size=0.2, random_state=42)
 
-# Models
 models = {
     "Linear Regression": LinearRegression(),
     "Decision Tree": DecisionTreeRegressor(random_state=42),
     "Random Forest": RandomForestRegressor(random_state=42, n_estimators=25),
 }
 
-# Train models
 for model in models.values():
     model.fit(x_train, y_train)
 
-# Function to map voltage to SOC (0% to 100%)
 def voltage_to_soc(voltage):
     return np.clip(((voltage - 3) / (12.6 - 3)) * 100, 0, 100)
 
-# Sidebar for model selection
 st.sidebar.header("Model Selection")
 selected_model_name = st.sidebar.selectbox("Select a model", list(models.keys()))
 selected_model = models[selected_model_name]
 
-# Fetch voltage and current data from Firebase safely
-vol_data = float(entries.get("systemVoltage", 0.0))  # Default to 0.0 if missing
-current_str = str(entries.get("current", "0.0 mA"))  # Convert to string to avoid errors
-
-# Extract numerical value from the current data
+vol_data = float(entries.get("systemVoltage", 0.0))
+current_str = str(entries.get("current", "0.0 mA"))
 current_match = re.search(r"[\d\.]+", current_str)
-current_data = float(current_match.group()) if current_match else 0.0  # Default to 0.0
-
-# Compute SOC based on voltage mapping
+current_data = float(current_match.group()) if current_match else 0.0
 mapped_soc = voltage_to_soc(vol_data)
 
-# Display fetched values
 st.write("### Fetched Data from Firebase:")
 st.write(f"**Voltage:** {vol_data} V")
-st.write(f"**Current:** {current_data} mA")  # Display in mA
+st.write(f"**Current:** {current_data} mA")
 
-# Predict for current values
 sample_input = np.array([[vol_data, current_data]], dtype=float)
 sample_input_scaled = scaler_x.transform(sample_input)
 pred_scaled = selected_model.predict(sample_input_scaled)
 pred = scaler_y.inverse_transform(pred_scaled).flatten()
 
-# Replace SOC with the mapped value
-pred[1] = mapped_soc  # SOC is at index 1 in the output list
+pred[1] = mapped_soc
 
-# Predict for 150 future timestamps
-future_inputs = np.tile([vol_data, current_data], (150, 1))  # Repeat input 150 times
+future_inputs = np.tile([vol_data, current_data], (150, 1))
 future_inputs_scaled = scaler_x.transform(future_inputs)
 future_preds_scaled = selected_model.predict(future_inputs_scaled)
 future_preds = scaler_y.inverse_transform(future_preds_scaled)
 
-# Replace SOC column in future predictions with mapped values
-future_preds[:, 1] = voltage_to_soc(vol_data)  # SOC is the second column
-
-# Store predictions in DataFrame
+future_preds[:, 1] = voltage_to_soc(vol_data)
 future_df = pd.DataFrame(future_preds, columns=output_features)
 future_df.index.name = "Future Timestamp"
 
-# Display predictions
 st.subheader("Predictions")
 st.write(f"**Model Used:** {selected_model_name}")
 st.write(f"**Predicted Outputs for Current Values (with SOC Mapped):**")
 st.write(dict(zip(output_features, pred)))
 
-# Bar plot for predicted values
 st.subheader("Predicted Values Bar Chart")
 fig_bar, ax_bar = plt.subplots(figsize=(8, 5))
 ax_bar.bar(output_features, pred, color=['blue', 'green', 'red', 'orange', 'purple'])
@@ -133,22 +105,24 @@ st.pyplot(fig_bar)
 st.subheader("Future Predictions for 150 Time Steps")
 st.write(future_df)
 
-# Function for fault detection
 def detect_faults(predictions):
     faults = []
-    if predictions[0] > 35:  # Battery temperature
-        faults.append("Battery Temperature > 35°C")
-    if predictions[1] < 30:  # SOC (mapped)
-        faults.append("SOC < 30%")
-    if predictions[2] < 89:  # SOH
-        faults.append("SOH < 89%")
-    if predictions[3] > 35:  # Motor temperature
-        faults.append("Motor Temperature > 35°C")
-    if predictions[4] < 60:  # Motor speed
+    if predictions[0] > 35:
+        faults.append("Battery Temperature > 35°C - SYSTEM COOLING ACTIVELY")
+    if predictions[0] > 45:
+        faults.append("Battery Temperature > 45°C - SYSTEM OVER HEATING : COOLING SYSTEM CHECK UP RECOMMENDED")
+    if predictions[1] < 30:
+        faults.append("SOC < 30% - LOW BATTERY PLUG IN CHARGE")
+    if predictions[2] < 89:
+        faults.append("SOH < 89% - BATTERY SERVICE RECOMMENDED")
+    if predictions[3] > 35:
+        faults.append("Motor Temperature > 35°C - SYSTEM COOLING ACTIVELY")
+    if predictions[3] > 45:
+        faults.append("Motor Temperature > 45°C - SYSTEM OVER HEATING : COOLING SYSTEM CHECK UP RECOMMENDED")
+    if predictions[4] < 60:
         faults.append("Motor Speed < 60")
     return faults
 
-# Fault detection
 st.subheader("Fault Detection")
 faults = detect_faults(pred)
 if faults:
@@ -158,7 +132,6 @@ if faults:
 else:
     st.success("No faults detected.")
 
-# Visualization
 st.header("Future Prediction Trend")
 fig, ax = plt.subplots(figsize=(12, 6))
 for feature in output_features:
