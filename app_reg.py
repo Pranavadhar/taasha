@@ -27,7 +27,7 @@ def fetch_firebase_data():
         return None
 
 entries = fetch_firebase_data()
-DATA_PATH = "real_BABY.csv"
+DATA_PATH = "real_updated_BABY.csv"
 try:
     data = pd.read_csv(DATA_PATH)
     data.dropna(inplace=True)
@@ -36,7 +36,7 @@ except FileNotFoundError:
     st.stop()
 
 input_features = ["volData", "currentData"]
-output_features = ["batTempData", "socData", "sohData", "motTempData", "speedData"]
+output_features = ["batTempData", "socData", "sohData", "motTempData"]
 
 x = data[input_features]
 y = data[output_features]
@@ -119,8 +119,6 @@ def detect_faults(predictions):
         faults.append("Motor Temperature > 35°C - SYSTEM COOLING ACTIVELY")
     if predictions[3] > 45:
         faults.append("Motor Temperature > 45°C - SYSTEM OVER HEATING : COOLING SYSTEM CHECK UP RECOMMENDED")
-    if predictions[4] < 60:
-        faults.append("Motor Speed < 60")
     return faults
 
 st.subheader("Fault Detection")
