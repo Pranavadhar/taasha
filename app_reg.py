@@ -69,20 +69,9 @@ models = {
 for model in models.values():
     model.fit(x_train, y_train)
 
-# Function for fault detection
-def detect_faults(predictions):
-    faults = []
-    if predictions[0] > 35:  # Battery temperature
-        faults.append("Battery Temperature > 35°C")
-    if predictions[1] < 30:  # SOC
-        faults.append("SOC < 30%")
-    if predictions[2] < 89:  # SOH
-        faults.append("SOH < 89%")
-    if predictions[3] > 35:  # Motor temperature
-        faults.append("Motor Temperature > 35°C")
-    if predictions[4] < 60:  # Motor speed
-        faults.append("Motor Speed < 60")
-    return faults
+# Function to map voltage to SOC (0% to 100%)
+def voltage_to_soc(voltage):
+    return np.clip(((voltage - 3) / (12.6 - 3)) * 100, 0, 100)
 
 # Sidebar for model selection
 st.sidebar.header("Model Selection")
@@ -97,6 +86,9 @@ current_str = str(entries.get("current", "0.0 mA"))  # Convert to string to avoi
 current_match = re.search(r"[\d\.]+", current_str)
 current_data = float(current_match.group()) if current_match else 0.0  # Default to 0.0
 
+# Compute SOC based on voltage mapping
+mapped_soc = voltage_to_soc(vol_data)
+
 # Display fetched values
 st.write("### Fetched Data from Firebase:")
 st.write(f"**Voltage:** {vol_data} V")
@@ -108,12 +100,17 @@ sample_input_scaled = scaler_x.transform(sample_input)
 pred_scaled = selected_model.predict(sample_input_scaled)
 pred = scaler_y.inverse_transform(pred_scaled).flatten()
 
+# Replace SOC with the mapped value
+pred[1] = mapped_soc  # SOC is at index 1 in the output list
+
 # Predict for 150 future timestamps
-future_predictions = []
 future_inputs = np.tile([vol_data, current_data], (150, 1))  # Repeat input 150 times
 future_inputs_scaled = scaler_x.transform(future_inputs)
 future_preds_scaled = selected_model.predict(future_inputs_scaled)
 future_preds = scaler_y.inverse_transform(future_preds_scaled)
+
+# Replace SOC column in future predictions with mapped values
+future_preds[:, 1] = voltage_to_soc(vol_data)  # SOC is the second column
 
 # Store predictions in DataFrame
 future_df = pd.DataFrame(future_preds, columns=output_features)
@@ -122,7 +119,7 @@ future_df.index.name = "Future Timestamp"
 # Display predictions
 st.subheader("Predictions")
 st.write(f"**Model Used:** {selected_model_name}")
-st.write(f"**Predicted Outputs for Current Values:**")
+st.write(f"**Predicted Outputs for Current Values (with SOC Mapped):**")
 st.write(dict(zip(output_features, pred)))
 
 # Bar plot for predicted values
@@ -135,6 +132,21 @@ st.pyplot(fig_bar)
 
 st.subheader("Future Predictions for 150 Time Steps")
 st.write(future_df)
+
+# Function for fault detection
+def detect_faults(predictions):
+    faults = []
+    if predictions[0] > 35:  # Battery temperature
+        faults.append("Battery Temperature > 35°C")
+    if predictions[1] < 30:  # SOC (mapped)
+        faults.append("SOC < 30%")
+    if predictions[2] < 89:  # SOH
+        faults.append("SOH < 89%")
+    if predictions[3] > 35:  # Motor temperature
+        faults.append("Motor Temperature > 35°C")
+    if predictions[4] < 60:  # Motor speed
+        faults.append("Motor Speed < 60")
+    return faults
 
 # Fault detection
 st.subheader("Fault Detection")
