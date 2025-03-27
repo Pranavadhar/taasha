@@ -111,8 +111,8 @@ def detect_faults(predictions):
         faults.append("Battery Temperature > 35°C - SYSTEM COOLING ACTIVELY")
     if predictions[0] > 45:
         faults.append("Battery Temperature > 45°C - SYSTEM OVER HEATING : COOLING SYSTEM CHECK UP RECOMMENDED")
-    if predictions[1] < 30:
-        faults.append("SOC < 30% - LOW BATTERY PLUG IN CHARGE")
+    if predictions[1] < 70:
+        faults.append("SOC < 70% - LOW BATTERY PLUG IN CHARGE")
     if predictions[2] < 89:
         faults.append("SOH < 89% - BATTERY SERVICE RECOMMENDED")
     if predictions[3] > 35:
