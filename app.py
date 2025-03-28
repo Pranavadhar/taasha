@@ -7,9 +7,11 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
 from sklearn.preprocessing import StandardScaler
 
+# Firebase credentials
 firebase_url = st.secrets["firebase"]["url"]
 firebase_auth_token = st.secrets["firebase"]["auth_token"]
 
+# Function to fetch data from Firebase
 def fetch_firebase_data():
     try:
         response = requests.get(f'{firebase_url}/parameters.json?auth={firebase_auth_token}')
@@ -22,10 +24,12 @@ def fetch_firebase_data():
         st.error(f"Network error: {e}")
         return None
 
+# Function to extract numeric values from strings
 def extract_numeric(value):
     match = re.search(r"[-+]?\d*\.\d+|\d+", str(value))
     return float(match.group()) if match else 0.0
 
+# Function to retrieve Firebase values
 def get_firebase_values():
     entries = fetch_firebase_data()
     if entries:
@@ -35,6 +39,11 @@ def get_firebase_values():
         return timestamp, voltage, current
     return 0.0, 0.0, 0.0
 
+# Function to calculate SOC from voltage
+def voltage_to_soc(voltage):
+    return np.clip(((voltage - 3) / (12.6 - 3)) * 100, 0, 100)
+
+# Load model and dataset
 MODEL_PATH = "LSTM_final_model_upt.h5"
 DATA_PATH = "real_updated_BABY.csv"
 
@@ -46,12 +55,15 @@ except Exception as e:
     st.error(f"Error loading model or dataset: {e}")
     st.stop()
 
+# Define input and output features
 input_features = ['Timestamp', 'volData', 'currentData']
 output_features = ['batTempData', 'socData', 'sohData', 'motTempData']
 
+# Scale data
 scaler = StandardScaler()
 scaler.fit(df[input_features + output_features])
 
+# Prediction function
 def predict(input_data):
     try:
         scaled_input = scaler.transform([input_data + [0] * len(output_features)])
@@ -63,6 +75,7 @@ def predict(input_data):
         st.error(f"Prediction error: {e}")
         return np.zeros(len(output_features))
 
+# Streamlit UI
 st.title("PMEV - LSTM")
 
 if st.button("Predict & Analyze"):
@@ -73,11 +86,15 @@ if st.button("Predict & Analyze"):
 
     input_data = [timestamp, voltage, current]
     predicted_values = predict(input_data)
-    predicted_batTemp, predicted_soc, predicted_soh, predicted_motTemp = predicted_values
+    
+    # Extract predicted values
+    predicted_batTemp, _, predicted_soh, predicted_motTemp = predicted_values
+    predicted_soc = voltage_to_soc(voltage)  # Calculate SOC using the voltage value
 
+    # Display results
     results = {
         "Battery Temperature (°C)": predicted_batTemp,
-        "State of Charge (SOC %)": predicted_soc,
+        "State of Charge (SOC %)": predicted_soc,  # SOC from voltage
         "State of Health (SOH %)": predicted_soh,
         "Motor Temperature (°C)": predicted_motTemp,
     }
@@ -85,6 +102,7 @@ if st.button("Predict & Analyze"):
     st.subheader("Predicted Values for Fetched Data")
     st.write(results)
 
+    # Bar chart visualization
     st.subheader("Predicted Values Bar Chart")
     fig, ax = plt.subplots()
     ax.bar(["batTempData", "socData", "sohData", "motTempData"], results.values(), color='blue')
@@ -93,6 +111,7 @@ if st.button("Predict & Analyze"):
     ax.grid()
     st.pyplot(fig)
 
+    # Plus-minus analysis
     st.subheader("Plus Minus Analysis")
     current_values = [current + i for i in range(-5, 6)]
     voltage_values = [voltage + i for i in range(-5, 6)]
@@ -100,21 +119,23 @@ if st.button("Predict & Analyze"):
     analysis_results = []
     for c, v in zip(current_values, voltage_values):
         pred = predict([timestamp, v, c])
-        analysis_results.append([c, v] + list(pred))
+        pred_soc = voltage_to_soc(v)  # Use calculated SOC for variations
+        analysis_results.append([c, v, pred[0], pred_soc, pred[2], pred[3]])
 
-    plus_minus_df = pd.DataFrame(analysis_results, columns=["Current (mA)", "Voltage (V)"] + output_features)
+    plus_minus_df = pd.DataFrame(analysis_results, columns=["Current (mA)", "Voltage (V)", "Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"])
     st.write(plus_minus_df)
 
+    # Trend Analysis Visualization
     st.subheader("Trend of Plus Minus Predictions")
     fig, axs = plt.subplots(2, 1, figsize=(10, 8))
     
-    for i, feature in enumerate(output_features):
+    for i, feature in enumerate(["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]):
         axs[0].plot(plus_minus_df["Current (mA)"], plus_minus_df[feature], label=feature)
     axs[0].set_title("Trend Analysis for Current")
     axs[0].legend()
     axs[0].grid()
     
-    for i, feature in enumerate(output_features):
+    for i, feature in enumerate(["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]):
         axs[1].plot(plus_minus_df["Voltage (V)"], plus_minus_df[feature], label=feature)
     axs[1].set_title("Trend Analysis for Voltage")
     axs[1].legend()
