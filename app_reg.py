@@ -27,7 +27,7 @@ def fetch_firebase_data():
     except requests.exceptions.RequestException as e:
         st.error(f"Network error: {e}")
         return None
-
+entries = fetch_firebase_data()
 # Load dataset
 DATA_PATH = "new_Baby.csv"
 try:
