@@ -41,7 +41,7 @@ def get_firebase_values():
 
 # Load model and dataset
 MODEL_PATH = "LSTM_final_newmodel.h5"
-DATA_PATH = "new_BABY.csv"
+DATA_PATH = "newBABY.csv"
 
 try:
     model = load_model(MODEL_PATH, compile=False)
