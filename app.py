@@ -39,13 +39,9 @@ def get_firebase_values():
         return timestamp, voltage, current
     return 0.0, 0.0, 0.0
 
-# Function to calculate SOC from voltage
-def voltage_to_soc(voltage):
-    return np.clip(((voltage - 3) / (12.6 - 3)) * 100, 0, 100)
-
 # Load model and dataset
-MODEL_PATH = "LSTM_final_model_upt.h5"
-DATA_PATH = "real_updated_BABY.csv"
+MODEL_PATH = "LSTM_final_newmodel.h5"
+DATA_PATH = "new_BABY.csv"
 
 try:
     model = load_model(MODEL_PATH, compile=False)
@@ -86,15 +82,14 @@ if st.button("Predict & Analyze"):
 
     input_data = [timestamp, voltage, current]
     predicted_values = predict(input_data)
-    
-    # Extract predicted values
-    predicted_batTemp, _, predicted_soh, predicted_motTemp = predicted_values
-    predicted_soc = voltage_to_soc(voltage)  # Calculate SOC using the voltage value
+
+    # Extract predicted values including SOC
+    predicted_batTemp, predicted_soc, predicted_soh, predicted_motTemp = predicted_values
 
     # Display results
     results = {
         "Battery Temperature (°C)": predicted_batTemp,
-        "State of Charge (SOC %)": predicted_soc,  # SOC from voltage
+        "State of Charge (SOC %)": predicted_soc,
         "State of Health (SOH %)": predicted_soh,
         "Motor Temperature (°C)": predicted_motTemp,
     }
@@ -119,8 +114,7 @@ if st.button("Predict & Analyze"):
     analysis_results = []
     for c, v in zip(current_values, voltage_values):
         pred = predict([timestamp, v, c])
-        pred_soc = voltage_to_soc(v)  # Use calculated SOC for variations
-        analysis_results.append([c, v, pred[0], pred_soc, pred[2], pred[3]])
+        analysis_results.append([c, v, pred[0], pred[1], pred[2], pred[3]])
 
     plus_minus_df = pd.DataFrame(analysis_results, columns=["Current (mA)", "Voltage (V)", "Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"])
     st.write(plus_minus_df)
@@ -128,18 +122,18 @@ if st.button("Predict & Analyze"):
     # Trend Analysis Visualization
     st.subheader("Trend of Plus Minus Predictions")
     fig, axs = plt.subplots(2, 1, figsize=(10, 8))
-    
-    for i, feature in enumerate(["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]):
+
+    for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
         axs[0].plot(plus_minus_df["Current (mA)"], plus_minus_df[feature], label=feature)
     axs[0].set_title("Trend Analysis for Current")
     axs[0].legend()
     axs[0].grid()
-    
-    for i, feature in enumerate(["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]):
+
+    for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
         axs[1].plot(plus_minus_df["Voltage (V)"], plus_minus_df[feature], label=feature)
     axs[1].set_title("Trend Analysis for Voltage")
     axs[1].legend()
     axs[1].grid()
-    
+
     plt.tight_layout()
     st.pyplot(fig)
