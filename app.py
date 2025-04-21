@@ -80,60 +80,63 @@ if st.button("Predict & Analyze"):
     st.write(f"**Current:** {current} mA")
     st.write(f"**Voltage:** {voltage} V")
 
-    input_data = [timestamp, voltage, current]
-    predicted_values = predict(input_data)
+    if 0 <= current <= 1:
+        st.info("Vehicle is not in motion - refrain from referring to the prediction")
+    else:
+        input_data = [timestamp, voltage, current]
+        predicted_values = predict(input_data)
 
-    # Extract predicted values including SOC
-    predicted_batTemp, predicted_soc, predicted_soh, predicted_motTemp = predicted_values
+        # Extract predicted values including SOC
+        predicted_batTemp, predicted_soc, predicted_soh, predicted_motTemp = predicted_values
 
-    # Display results
-    results = {
-        "Battery Temperature (°C)": predicted_batTemp,
-        "State of Charge (SOC %)": predicted_soc,
-        "State of Health (SOH %)": predicted_soh,
-        "Motor Temperature (°C)": predicted_motTemp,
-    }
+        # Display results
+        results = {
+            "Battery Temperature (°C)": predicted_batTemp,
+            "State of Charge (SOC %)": predicted_soc,
+            "State of Health (SOH %)": predicted_soh,
+            "Motor Temperature (°C)": predicted_motTemp,
+        }
 
-    st.subheader("Predicted Values for Fetched Data")
-    st.write(results)
+        st.subheader("Predicted Values for Fetched Data")
+        st.write(results)
 
-    # Bar chart visualization
-    st.subheader("Predicted Values Bar Chart")
-    fig, ax = plt.subplots()
-    ax.bar(["batTempData", "socData", "sohData", "motTempData"], results.values(), color='blue')
-    ax.set_ylabel("Value")
-    ax.set_title("Predicted Values")
-    ax.grid()
-    st.pyplot(fig)
+        # Bar chart visualization
+        st.subheader("Predicted Values Bar Chart")
+        fig, ax = plt.subplots()
+        ax.bar(["batTempData", "socData", "sohData", "motTempData"], results.values(), color='blue')
+        ax.set_ylabel("Value")
+        ax.set_title("Predicted Values")
+        ax.grid()
+        st.pyplot(fig)
 
-    # Plus-minus analysis
-    st.subheader("Plus Minus Analysis")
-    current_values = [current + i for i in range(-5, 6)]
-    voltage_values = [voltage + i for i in range(-5, 6)]
+        # Plus-minus analysis
+        st.subheader("Plus Minus Analysis")
+        current_values = [current + i for i in range(-5, 6)]
+        voltage_values = [voltage + i for i in range(-5, 6)]
 
-    analysis_results = []
-    for c, v in zip(current_values, voltage_values):
-        pred = predict([timestamp, v, c])
-        analysis_results.append([c, v, pred[0], pred[1], pred[2], pred[3]])
+        analysis_results = []
+        for c, v in zip(current_values, voltage_values):
+            pred = predict([timestamp, v, c])
+            analysis_results.append([c, v, pred[0], pred[1], pred[2], pred[3]])
 
-    plus_minus_df = pd.DataFrame(analysis_results, columns=["Current (mA)", "Voltage (V)", "Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"])
-    st.write(plus_minus_df)
+        plus_minus_df = pd.DataFrame(analysis_results, columns=["Current (mA)", "Voltage (V)", "Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"])
+        st.write(plus_minus_df)
 
-    # Trend Analysis Visualization
-    st.subheader("Trend of Plus Minus Predictions")
-    fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+        # Trend Analysis Visualization
+        st.subheader("Trend of Plus Minus Predictions")
+        fig, axs = plt.subplots(2, 1, figsize=(10, 8))
 
-    for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
-        axs[0].plot(plus_minus_df["Current (mA)"], plus_minus_df[feature], label=feature)
-    axs[0].set_title("Trend Analysis for Current")
-    axs[0].legend()
-    axs[0].grid()
+        for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
+            axs[0].plot(plus_minus_df["Current (mA)"], plus_minus_df[feature], label=feature)
+        axs[0].set_title("Trend Analysis for Current")
+        axs[0].legend()
+        axs[0].grid()
 
-    for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
-        axs[1].plot(plus_minus_df["Voltage (V)"], plus_minus_df[feature], label=feature)
-    axs[1].set_title("Trend Analysis for Voltage")
-    axs[1].legend()
-    axs[1].grid()
+        for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
+            axs[1].plot(plus_minus_df["Voltage (V)"], plus_minus_df[feature], label=feature)
+        axs[1].set_title("Trend Analysis for Voltage")
+        axs[1].legend()
+        axs[1].grid()
 
-    plt.tight_layout()
-    st.pyplot(fig)
+        plt.tight_layout()
+        st.pyplot(fig)
