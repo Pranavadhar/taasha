@@ -46,7 +46,6 @@ DATA_PATH = "new_Baby.csv"
 try:
     model = load_model(MODEL_PATH, compile=False)
     df = pd.read_csv(DATA_PATH).dropna()
-    st.success("Model and dataset loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model or dataset: {e}")
     st.stop()
