@@ -66,33 +66,6 @@ current_str = str(entries.get("current", "0.0 mA"))
 current_match = re.search(r"[\d\.]+", current_str)
 current_data = float(current_match.group()) if current_match else 0.0
 
-st.title("PMEV - REG MODELS")
-
-st.write("### Fetched Data from Firebase:")
-st.write(f"**Voltage:** {vol_data} V")
-st.write(f"**Current:** {current_data} mA")
-
-sample_input = np.array([[vol_data, current_data]], dtype=float)
-sample_input_scaled = scaler_x.transform(sample_input)
-pred_scaled = selected_model.predict(sample_input_scaled)
-pred = scaler_y.inverse_transform(pred_scaled).flatten()
-
-# No more overriding SOC with voltage_to_soc mapping
-
-st.subheader("Predicted Values for Fetched Data")
-st.write(f"**Model Used:** {selected_model_name}")
-st.write(f"**Battery Temperature:** {pred[0]:.2f} °C")
-st.write(f"**SOC (State of Charge):** {pred[1]:.2f} %")
-st.write(f"**SOH (State of Health):** {pred[2]:.2f} %")
-st.write(f"**Motor Temperature:** {pred[3]:.2f} °C")
-
-st.subheader("Predicted Values Bar Chart")
-fig_bar, ax_bar = plt.subplots(figsize=(8, 5))
-ax_bar.bar(output_features, pred, color=['blue', 'blue', 'blue', 'blue'])
-ax_bar.set_ylabel("Predicted Values")
-ax_bar.set_title("Predicted Output for Fetched Data")
-st.pyplot(fig_bar)
-
 def detect_faults(predictions):
     faults = []
     if predictions[0] > 35:
@@ -109,51 +82,81 @@ def detect_faults(predictions):
         faults.append("Motor Temperature > 45°C - SYSTEM OVER HEATING : COOLING SYSTEM CHECK UP RECOMMENDED")
     return faults
 
-st.subheader("Fault Detection")
-faults = detect_faults(pred)
-if faults:
-    st.error("Faults Detected:")
-    for fault in faults:
-        st.write(f"- {fault}")
+st.title("PMEV - REG MODELS")
+
+st.write("### Fetched Data from Firebase:")
+st.write(f"**Voltage:** {vol_data} V")
+st.write(f"**Current:** {current_data} mA")
+
+# Check if the vehicle is in motion or not
+if 0 <= current_data <= 1:
+    st.info("Vehicle is not in motion - refrain from referring to the prediction.")
+
 else:
-    st.success("No faults detected.")
+    # Prediction section
+    sample_input = np.array([[vol_data, current_data]], dtype=float)
+    sample_input_scaled = scaler_x.transform(sample_input)
+    pred_scaled = selected_model.predict(sample_input_scaled)
+    pred = scaler_y.inverse_transform(pred_scaled).flatten()
 
-st.subheader("Plus-Minus Analysis")
+    st.subheader("Predicted Values for Fetched Data")
+    st.write(f"**Model Used:** {selected_model_name}")
+    st.write(f"**Battery Temperature:** {pred[0]:.2f} °C")
+    st.write(f"**SOC (State of Charge):** {pred[1]:.2f} %")
+    st.write(f"**SOH (State of Health):** {pred[2]:.2f} %")
+    st.write(f"**Motor Temperature:** {pred[3]:.2f} °C")
 
-currents = list(range(int(current_data - 5), int(current_data + 6)))
-voltages = list(np.linspace(vol_data - 5, vol_data + 5, 11))
+    st.subheader("Predicted Values Bar Chart")
+    fig_bar, ax_bar = plt.subplots(figsize=(8, 5))
+    ax_bar.bar(output_features, pred, color=['blue', 'blue', 'blue', 'blue'])
+    ax_bar.set_ylabel("Predicted Values")
+    ax_bar.set_title("Predicted Output for Fetched Data")
+    st.pyplot(fig_bar)
 
-plus_minus_results = []
-for c, v in zip(currents, voltages):
-    test_input = np.array([[v, c]], dtype=float)
-    test_input_scaled = scaler_x.transform(test_input)
-    test_pred_scaled = selected_model.predict(test_input_scaled)
-    test_pred = scaler_y.inverse_transform(test_pred_scaled).flatten()
-    # No more overriding SOC with voltage_to_soc mapping
-    
-    plus_minus_results.append([c, v, *test_pred])
+    # Fault Detection
+    st.subheader("Fault Detection")
+    faults = detect_faults(pred)
+    if faults:
+        st.error("Faults Detected:")
+        for fault in faults:
+            st.write(f"- {fault}")
+    else:
+        st.success("No faults detected.")
 
-plus_minus_df = pd.DataFrame(plus_minus_results, columns=["Current (mA)", "Voltage (V)", "Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"])
-st.write(plus_minus_df)
+    # Plus-Minus Analysis
+    st.subheader("Plus-Minus Analysis")
+    currents = list(range(int(current_data - 5), int(current_data + 6)))
+    voltages = list(np.linspace(vol_data - 5, vol_data + 5, 11))
 
-st.header("Trend of Plus-Minus Predictions")
-fig, ax = plt.subplots(figsize=(12, 6))
-for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
-    ax.plot(plus_minus_df["Current (mA)"], plus_minus_df[feature], label=feature)
+    plus_minus_results = []
+    for c, v in zip(currents, voltages):
+        test_input = np.array([[v, c]], dtype=float)
+        test_input_scaled = scaler_x.transform(test_input)
+        test_pred_scaled = selected_model.predict(test_input_scaled)
+        test_pred = scaler_y.inverse_transform(test_pred_scaled).flatten()
+        plus_minus_results.append([c, v, *test_pred])
 
-ax.set_xlabel("Current (mA)")
-ax.set_ylabel("Predicted Values")
-ax.set_title("Predictions for Plus-Minus Analysis")
-ax.legend()
-st.pyplot(fig)
+    plus_minus_df = pd.DataFrame(plus_minus_results, columns=["Current (mA)", "Voltage (V)", "Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"])
+    st.write(plus_minus_df)
 
-# Plot for Voltage vs Predicted Values
-fig, ax = plt.subplots(figsize=(12, 6))
-for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
-    ax.plot(plus_minus_df["Voltage (V)"], plus_minus_df[feature], label=f"{feature} vs Voltage")
+    st.header("Trend of Plus-Minus Predictions")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
+        ax.plot(plus_minus_df["Current (mA)"], plus_minus_df[feature], label=feature)
 
-ax.set_xlabel("Voltage (V)")
-ax.set_ylabel("Predicted Values")
-ax.set_title("Predictions for Plus-Minus Analysis (Voltage-Based)")
-ax.legend()
-st.pyplot(fig)
+    ax.set_xlabel("Current (mA)")
+    ax.set_ylabel("Predicted Values")
+    ax.set_title("Predictions for Plus-Minus Analysis")
+    ax.legend()
+    st.pyplot(fig)
+
+    # Plot for Voltage vs Predicted Values
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for feature in ["Battery Temp (°C)", "SOC (%)", "SOH (%)", "Motor Temp (°C)"]:
+        ax.plot(plus_minus_df["Voltage (V)"], plus_minus_df[feature], label=f"{feature} vs Voltage")
+
+    ax.set_xlabel("Voltage (V)")
+    ax.set_ylabel("Predicted Values")
+    ax.set_title("Predictions for Plus-Minus Analysis (Voltage-Based)")
+    ax.legend()
+    st.pyplot(fig)
