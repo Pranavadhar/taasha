@@ -54,22 +54,27 @@ except Exception as e:
 input_features = ['Timestamp', 'volData', 'currentData']
 output_features = ['batTempData', 'socData', 'sohData', 'motTempData']
 
-# Scale data
-scaler = StandardScaler()
-scaler.fit(df[input_features + output_features])
+# Separate scalers for input and output
+input_scaler = StandardScaler()
+output_scaler = StandardScaler()
+
+# Fit the scalers
+input_scaler.fit(df[input_features])
+output_scaler.fit(df[output_features])
 
 # Prediction function
 def predict(input_data):
     try:
-        scaled_input = scaler.transform([input_data + [0] * len(output_features)])
-        reshaped_input = scaled_input[:, :-len(output_features)].reshape(1, 1, len(input_features))
+        scaled_input = input_scaler.transform([input_data])
+        reshaped_input = scaled_input.reshape(1, 1, len(input_features))
         predictions = model.predict(reshaped_input)
-        rescaled_output = scaler.inverse_transform(np.concatenate((reshaped_input[:, 0], predictions), axis=1))[:, -len(output_features):]
+        rescaled_output = output_scaler.inverse_transform(predictions)
         return rescaled_output[0]
     except Exception as e:
         st.error(f"Prediction error: {e}")
         return np.zeros(len(output_features))
-    
+
+# Fault detection logic
 def detect_faults(predictions):
     faults = []
     if predictions[0] > 35:
@@ -101,7 +106,7 @@ if st.button("Predict & Analyze"):
         input_data = [timestamp, voltage, current]
         predicted_values = predict(input_data)
 
-        # Extract predicted values including SOC
+        # Extract predicted values
         predicted_batTemp, predicted_soc, predicted_soh, predicted_motTemp = predicted_values
 
         # Display results
@@ -114,6 +119,13 @@ if st.button("Predict & Analyze"):
 
         st.subheader("Predicted Values for Fetched Data")
         st.write(results)
+
+        # Show faults
+        faults = detect_faults(predicted_values)
+        if faults:
+            st.subheader("Detected Faults")
+            for fault in faults:
+                st.warning(fault)
 
         # Bar chart visualization
         st.subheader("Predicted Values Bar Chart")
