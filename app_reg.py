@@ -68,8 +68,8 @@ current_data = float(current_match.group()) if current_match else 0.0
 
 def detect_faults(predictions):
     faults = []
-    if predictions[0] > 35:
-        faults.append("Battery Temperature > 35°C - SYSTEM COOLING ACTIVELY")
+    if predictions[0] > 34:
+        faults.append("Battery Temperature > 34°C - SYSTEM COOLING ACTIVELY")
     if predictions[0] > 45:
         faults.append("Battery Temperature > 45°C - SYSTEM OVER HEATING : COOLING SYSTEM CHECK UP RECOMMENDED")
     if predictions[1] < 30:
