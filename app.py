@@ -46,6 +46,7 @@ DATA_PATH = "new_Baby.csv"
 try:
     model = load_model(MODEL_PATH, compile=False)
     df = pd.read_csv(DATA_PATH).dropna()
+    st.success("Model and dataset loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model or dataset: {e}")
     st.stop()
@@ -69,6 +70,22 @@ def predict(input_data):
     except Exception as e:
         st.error(f"Prediction error: {e}")
         return np.zeros(len(output_features))
+    
+def detect_faults(predictions):
+    faults = []
+    if predictions[0] > 35:
+        faults.append("Battery Temperature > 35°C - SYSTEM COOLING ACTIVELY")
+    if predictions[0] > 45:
+        faults.append("Battery Temperature > 45°C - SYSTEM OVER HEATING : COOLING SYSTEM CHECK UP RECOMMENDED")
+    if predictions[1] < 30:
+        faults.append("SOC < 30% - LOW BATTERY PLUG IN CHARGE")
+    if predictions[2] < 89:
+        faults.append("SOH < 89% - BATTERY SERVICE RECOMMENDED")
+    if predictions[3] > 35:
+        faults.append("Motor Temperature > 35°C - SYSTEM COOLING ACTIVELY")
+    if predictions[3] > 45:
+        faults.append("Motor Temperature > 45°C - SYSTEM OVER HEATING : COOLING SYSTEM CHECK UP RECOMMENDED")
+    return faults
 
 # Streamlit UI
 st.title("PMEV - LSTM")
