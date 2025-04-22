@@ -111,10 +111,10 @@ if st.button("Predict & Analyze"):
 
         # Display results
         results = {
-            "Battery Temperature (°C)": predicted_batTemp,
-            "State of Charge (SOC %)": predicted_soc,
-            "State of Health (SOH %)": predicted_soh,
-            "Motor Temperature (°C)": predicted_motTemp,
+            "Battery Temperature (°C)": float(predicted_batTemp),
+            "State of Charge (SOC %)": float(predicted_soc),
+            "State of Health (SOH %)": float(predicted_soh),
+            "Motor Temperature (°C)": float(predicted_motTemp),
         }
 
         st.subheader("Predicted Values for Fetched Data")
