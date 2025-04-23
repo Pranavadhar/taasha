@@ -27,7 +27,7 @@ def fetch_firebase_data():
         return None
 
 entries = fetch_firebase_data()
-DATA_PATH = "new_Baby.csv"  # Updated path as requested
+DATA_PATH = "new_Born.csv"  # Updated path as requested
 try:
     data = pd.read_csv(DATA_PATH)
     data.dropna(inplace=True)
