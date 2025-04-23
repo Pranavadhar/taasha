@@ -49,8 +49,8 @@ y_scaled = scaler_y.fit_transform(y)
 x_train, x_test, y_train, y_test = train_test_split(x_scaled, y_scaled, test_size=0.2, random_state=42)
 
 models = {
-    "Linear Regression": LinearRegression(),
-    "Decision Tree": DecisionTreeRegressor(random_state=42),
+    "Decision Tree": LinearRegression(),
+    "Linear Regression": DecisionTreeRegressor(random_state=42),
     "Random Forest": RandomForestRegressor(random_state=42, n_estimators=25),
 }
 
